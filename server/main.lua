@@ -1,28 +1,8 @@
---==================================================
--- CONFIG
---==================================================
-
+local SVConfig = require 'config.sv_config'
 local logger = require '@qbx_core.modules.logger'
-Config = {}
-
-Config.MaxLevel = 50
-Config.BaseXP = 100
-Config.GrowthRate = 1.15
-
--- Only define categories; XP is given manually
-Config.Categories = {
-    "delivery",
-    "garbage",
-    "farming",
-    "criminal",
-    "electric",
-    "crafting",
-    "driving",
-    "fishing",
-}
 
 -- Generate XP per level for each category
-function Config.GenerateXPLevels(maxLevel, baseXP, growthRate)
+function GenerateXPLevels(maxLevel, baseXP, growthRate)
     local levels = {}
     for lvl = 1, maxLevel do
         levels[lvl] = math.floor(baseXP * (growthRate ^ (lvl - 1)))
@@ -30,9 +10,9 @@ function Config.GenerateXPLevels(maxLevel, baseXP, growthRate)
     return levels
 end
 
-Config.CategoryLevels = {}
-for _, category in ipairs(Config.Categories) do
-    Config.CategoryLevels[category] = Config.GenerateXPLevels(Config.MaxLevel, Config.BaseXP, Config.GrowthRate)
+SVConfig.CategoryLevels = {}
+for _, category in ipairs(SVConfig.Categories) do
+    SVConfig.CategoryLevels[category] = GenerateXPLevels(SVConfig.MaxLevel, SVConfig.BaseXP, SVConfig.GrowthRate)
 end
 
 --==================================================
@@ -86,7 +66,7 @@ AddEventHandler('playerSpawned', function()
     if not result then
         -- Player not in DB, create default categories
         local categories = {}
-        for _, category in ipairs(Config.Categories) do
+        for _, category in ipairs(SVConfig.Categories) do
             categories[category] = { level = 1, xp = 0 }
         end
         PlayerData[playerID].categories = categories
@@ -102,7 +82,7 @@ AddEventHandler('playerSpawned', function()
         PlayerData[playerID].categories = categories
 
         -- Ensure all categories exist (in case you added new ones)
-        for _, category in ipairs(Config.Categories) do
+        for _, category in ipairs(SVConfig.Categories) do
             if not PlayerData[playerID].categories[category] then
                 PlayerData[playerID].categories[category] = { level = 1, xp = 0 }
             end
@@ -156,21 +136,21 @@ function AddXP(playerID, category, xpAmount)
     if not PlayerData[playerID].categories[category] then
         PlayerData[playerID].categories[category] = { level = 1, xp = 0 }
     end
-    if not Config.CategoryLevels[category] then
-        Config.CategoryLevels[category] = Config.GenerateXPLevels(Config.MaxLevel, Config.BaseXP, Config.GrowthRate)
+    if not SVConfig.CategoryLevels[category] then
+        SVConfig.CategoryLevels[category] = GenerateXPLevels(SVConfig.MaxLevel, SVConfig.BaseXP, SVConfig.GrowthRate)
     end
 
     local data = PlayerData[playerID].categories[category]
 
-    if data.level >= Config.MaxLevel then
-        data.xp = math.min((data.xp or 0) + xpAmount, Config.CategoryLevels[category][Config.MaxLevel] or 0)
+    if data.level >= SVConfig.MaxLevel then
+        data.xp = math.min((data.xp or 0) + xpAmount, SVConfig.CategoryLevels[category][SVConfig.MaxLevel] or 0)
     else
         data.xp = (data.xp or 0) + xpAmount
-        local nextXP = Config.CategoryLevels[category] and Config.CategoryLevels[category][data.level] or nil
-        while nextXP and data.xp >= nextXP and data.level < Config.MaxLevel do
+        local nextXP = SVConfig.CategoryLevels[category] and SVConfig.CategoryLevels[category][data.level] or nil
+        while nextXP and data.xp >= nextXP and data.level < SVConfig.MaxLevel do
             data.xp = data.xp - nextXP
             data.level = data.level + 1
-            nextXP = Config.CategoryLevels[category] and Config.CategoryLevels[category][data.level] or nil
+            nextXP = SVConfig.CategoryLevels[category] and SVConfig.CategoryLevels[category][data.level] or nil
         end
     end
 
@@ -211,7 +191,7 @@ local function GetAllXP(playerID)
                 PlayerData[playerID].categories = categories
             else
                 -- If nothing in DB, create default categories with 0 XP
-                for _, category in ipairs(Config.Categories) do
+                for _, category in ipairs(SVConfig.Categories) do
                     PlayerData[playerID].categories[category] = { level = 1, xp = 0 }
                 end
             end
@@ -219,14 +199,14 @@ local function GetAllXP(playerID)
     end
 
     -- Build allXP table with defaults
-    for _, category in ipairs(Config.Categories) do
+    for _, category in ipairs(SVConfig.Categories) do
         local data = { level = 1, xp = 0 }  -- default
 
         if PlayerData[playerID].categories[category] then
             data = PlayerData[playerID].categories[category]
         end
 
-        local nextXP = Config.CategoryLevels[category] and Config.CategoryLevels[category][data.level] or 0
+        local nextXP = SVConfig.CategoryLevels[category] and SVConfig.CategoryLevels[category][data.level] or 0
 
         allXP[category] = {
             level = data.level or 1,
@@ -264,7 +244,7 @@ end)
 
 lib.callback.register('stressy-levels:getNextLevelXP', function(source, category)
     local data = GetCategoryData(source, category)
-    local nextXP = Config.CategoryLevels[category] and Config.CategoryLevels[category][data.level] or 0
+    local nextXP = SVConfig.CategoryLevels[category] and SVConfig.CategoryLevels[category][data.level] or 0
     return nextXP
 end)
 
@@ -320,7 +300,7 @@ exports('GetCategoryLevel', GetCategoryLevel)
 --         return
 --     end
 
---     if not Config.Categories[category] and not Config.CategoryLevels[category] then
+--     if not SVConfig.Categories[category] and not SVConfig.CategoryLevels[category] then
 --         TriggerClientEvent('chat:addMessage', source, { color={255,0,0}, args={"XP System","Invalid category: "..category}})
 --         return
 --     end
