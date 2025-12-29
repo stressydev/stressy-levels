@@ -16,4 +16,7 @@ server_scripts {
 
 files {
   'config/**.lua',
+  'web/dist/**.js',
+  'web/dist/**.css',
+  'web/dist/index.html'
 }
